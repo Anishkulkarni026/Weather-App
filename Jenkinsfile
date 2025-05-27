@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         NODE_ENV = 'development'
-        DOCKER_IMAGE = "your-dockerhub-username/weather-app"
-        DOCKER_TAG = "latest"
+        DOCKER_IMAGE = 'anishkulkarni04/weather-app'  // Change this to your Docker Hub repo
+        DOCKER_CREDENTIALS = '04c60e2c-130d-4e28-a753-de03987daae6'      // The ID you gave in Step 2
     }
 
     stages {
@@ -14,30 +14,28 @@ pipeline {
             }
         }
 
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    docker.build(DOCKER_IMAGE)
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    script {
-                        docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') {
-                            docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
-                        }
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS) {
+                        docker.image(DOCKER_IMAGE).push('latest')
                     }
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            echo 'Done building and pushing Docker image.'
         }
     }
 }
