@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Weather App</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Roboto', sans-serif;
+      color: #fff; overflow-x: hidden; background: #000;
+    }
+    video.bg-video {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      z-index: -1;
+    }
+    .container {
+      max-width: 700px; margin: 30px auto;
+      padding: 20px; background: rgba(0,0,0,0.5);
+      border-radius: 15px;
+    }
+    input, button, datalist {
+      width: 100%; padding: 10px; margin: 5px 0;
+      border: none; border-radius: 8px; font-size: 1rem;
+    }
+    button { background: #03a9f4; cursor: pointer; }
+    .forecast {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+    }
+    .card {
+      background: rgba(255,255,255,0.1);
+      flex: 1 1 100px; padding: 10px; border-radius: 8px;
+      text-align: center;
+    }
+    .saved {
+      margin-top: 20px;
+    }
+    .saved button {
+      background: #333; margin: 2px; padding: 6px 12px;
+      border-radius: 6px; cursor: pointer;
+    }
+    #clearBtn {
+      background: #e91e63; margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <video id="bgVideo" class="bg-video" autoplay muted loop>
+    <source src="clear.mp4" type="video/mp4">
+  </video>
+
+  <div class="container">
+    <h2>🌤️ Weather Forecast</h2>
+
+    <!-- Search with suggestions -->
+    <input id="city" list="suggestions" placeholder="Enter city name" autocomplete="off"/>
+    <datalist id="suggestions"></datalist>
+    <button onclick="getWeather()">Search</button>
+
+    <!-- Current weather info -->
+    <div id="weather-info"></div>
+
+    <!-- 5-day forecast -->
+    <h3>5-Day Forecast</h3>
+    <div class="forecast" id="forecast"></div>
+
+    <!-- Saved history & clear -->
+    <div class="saved" id="savedCities"></div>
+    <button id="clearBtn" onclick="clearHistory()">Clear History</button>
+  </div>
+
+  <script>
+    const videoMap = {
+      clear: 'clear.mp4',
+      clouds: 'clouds.mp4',
+      rain: 'rain.mp4',
+      snow: 'snow.mp4',
+      thunderstorm: 'storm.mp4',
+      default: 'clear.mp4'
+    };
+
+    // Suggestions
+    const cityInput = document.getElementById('city');
+    const suggestionList = document.getElementById('suggestions');
+    let suggestTimeout;
+    cityInput.addEventListener('input', () => {
+      clearTimeout(suggestTimeout);
+      const q = cityInput.value.trim();
+      if (q.length < 1) { suggestionList.innerHTML = ''; return; }
+      suggestTimeout = setTimeout(async () => {
+        const res = await fetch(`/suggest?q=${encodeURIComponent(q)}`);
+        const items = await res.json();
+        suggestionList.innerHTML = items.map(n => `<option value="${n}">`).join('');
+      }, 300);
+    });
+
+    // LocalStorage history
+    function saveCity(c) {
+      let cities = JSON.parse(localStorage.getItem('cities')||'[]');
+      if (!cities.includes(c)) {
+        cities.push(c);
+        localStorage.setItem('cities', JSON.stringify(cities));
+      }
+    }
+    function renderSaved() {
+      const cities = JSON.parse(localStorage.getItem('cities')||'[]');
+      const cont = document.getElementById('savedCities');
+      const clearBtn = document.getElementById('clearBtn');
+      if (!cities.length) {
+        cont.innerHTML = '';
+        clearBtn.style.display = 'none';
+        return;
+      }
+      cont.innerHTML = '<p>Recently searched:</p>' +
+        cities.map(c => `<button onclick="getWeather('${c}')">${c}</button>`).join('');
+      clearBtn.style.display = 'block';
+    }
+    function clearHistory() {
+      localStorage.removeItem('cities');
+      renderSaved();
+    }
+
+    // Fetch & render weather + forecast
+    async function getWeather(cityName) {
+      const city = cityName || cityInput.value.trim();
+      if (!city) return;
+      saveCity(city);
+      renderSaved();
+
+      const res = await fetch(`/weather?city=${encodeURIComponent(city)}`);
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById('weather-info').innerHTML = '<p>City not found.</p>';
+        return;
+      }
+      const cur = data.current;
+      const fct = data.forecast;
+
+      // Video background
+      const type = cur.weather[0].main.toLowerCase();
+      document.getElementById('bgVideo').src = videoMap[type]||videoMap.default;
+
+      // Current
+      document.getElementById('weather-info').innerHTML = `
+        <p><strong>${cur.name}</strong></p>
+        <p>🌡️ ${cur.main.temp}°C — ${cur.weather[0].description}</p>
+        <p>💧 ${cur.main.humidity}% | 🍃 ${cur.wind.speed} m/s</p>
+      `;
+
+      // Forecast (every 8th = ~daily)
+      const html = fct.list
+        .filter((_, i) => i % 8 === 0)
+        .map(d => {
+          const day = new Date(d.dt*1000).toLocaleDateString();
+          return `<div class="card">
+            <p><strong>${day}</strong></p>
+            <p>${d.weather[0].main}</p>
+            <p>${d.main.temp}°C</p>
+          </div>`;
+        }).join('');
+      document.getElementById('forecast').innerHTML = html;
+    }
+
+    // Init
+    renderSaved();
+  </script>
+</body>
+</html>
