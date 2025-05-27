@@ -3,6 +3,8 @@ pipeline {
 
     environment {
         NODE_ENV = 'development'
+        DOCKER_IMAGE = "your-dockerhub-username/weather-app"
+        DOCKER_TAG = "latest"
     }
 
     stages {
@@ -12,38 +14,30 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build Docker Image') {
             steps {
-                sh 'npm install'
+                script {
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                }
             }
         }
 
-        stage('Lint (optional)') {
+        stage('Push Docker Image') {
             steps {
-                // Run lint if your project has it
-                sh 'npm run lint || true'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                // Skip if you don't have tests
-                sh 'npm test || true'
-            }
-        }
-
-        stage('Run') {
-            steps {
-                // Run the app (use "npm start" if you have it configured)
-                sh 'node index.js &'
-                sh 'sleep 10' // Wait for app to start (optional)
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') {
+                            docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                        }
+                    }
+                }
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up...'
+            echo 'Done building and pushing Docker image.'
         }
     }
 }
