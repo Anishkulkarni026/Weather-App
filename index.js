@@ -3,18 +3,18 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json()); // for parsing application/json
+app.use(express.json());
 app.use(express.static('public'));
 
 const API_KEY = process.env.API_KEY;
 
-// In-memory store for favorites and alerts per user (demo purpose)
+// In-memory data store (for demo purposes)
 const userData = {
-  favorites: {}, // { userId: [locationString] }
-  alerts: {},    // { userId: [alertObjects] }
+  favorites: {}, // Format: { userId: [locationString] }
+  alerts: {},    // Format: { userId: [alertObjects] }
 };
 
-// Helper: format location name for suggestions
+// Helper: Format location nicely
 function formatLocation(loc) {
   let name = loc.name;
   if (loc.state) name += `, ${loc.state}`;
@@ -22,22 +22,24 @@ function formatLocation(loc) {
   return name;
 }
 
-// Suggest cities endpoint using OpenWeatherMap Geocoding API
+// Endpoint: Suggest cities using OpenWeatherMap Geocoding API
 app.get('/suggest', async (req, res) => {
-  const q = req.query.q;
-  if (!q || q.length < 1) return res.json([]);
-  const url = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${API_KEY}`;
+  const query = req.query.q;
+  if (!query || query.trim() === '') return res.json([]);
+
+  const url = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=5&appid=${API_KEY}`;
+
   try {
     const response = await axios.get(url);
     const suggestions = response.data.map(formatLocation);
     res.json(suggestions);
   } catch (err) {
-    console.error('Suggest error:', err.message);
+    console.error('[Suggest API Error]', err.message);
     res.status(500).json([]);
   }
 });
 
-// Weather + Forecast + AQI + Historical + Sun/Moon endpoint
+// Endpoint: Get weather, forecast, AQI, historical, sun/moon data
 app.get('/weather', async (req, res) => {
   const { city, lat, lon } = req.query;
   if (!city && (!lat || !lon)) {
@@ -45,44 +47,39 @@ app.get('/weather', async (req, res) => {
   }
 
   try {
-    let weatherUrl, forecastUrl, aqiUrl, historicalPromises;
+    let weatherUrl, forecastUrl, aqiUrl = null, historicalPromises = [];
 
     if (city) {
-      // If city is provided, use city for current and forecast, but no AQI or historical (need lat/lon)
       weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`;
       forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`;
-      aqiUrl = null;
-      historicalPromises = null;
     } else {
-      // If lat/lon provided, get all data
       weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`;
       forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`;
       aqiUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`;
 
-      // Historical data for past 5 days
+      // Prepare historical data for past 5 days
       const now = Math.floor(Date.now() / 1000);
       const oneDay = 86400;
-      historicalPromises = [];
       for (let i = 1; i <= 5; i++) {
         const dt = now - i * oneDay;
-        historicalPromises.push(
-          axios.get(`https://api.openweathermap.org/data/2.5/onecall/timemachine?lat=${lat}&lon=${lon}&dt=${dt}&appid=${API_KEY}&units=metric`)
-        );
+        const historicalUrl = `https://api.openweathermap.org/data/2.5/onecall/timemachine?lat=${lat}&lon=${lon}&dt=${dt}&appid=${API_KEY}&units=metric`;
+        historicalPromises.push(axios.get(historicalUrl));
       }
     }
 
+    // Fetch all in parallel
     const [currentRes, forecastRes, aqiRes, historicalRes] = await Promise.all([
       axios.get(weatherUrl),
       axios.get(forecastUrl),
       aqiUrl ? axios.get(aqiUrl) : Promise.resolve({ data: null }),
-      historicalPromises ? Promise.all(historicalPromises) : Promise.resolve([])
+      historicalPromises.length ? Promise.all(historicalPromises) : Promise.resolve([])
     ]);
 
-    // Sun and Moon info (moon_phase is placeholder)
+    // Sun/Moon info placeholder
     const sunMoon = {
       sunrise: currentRes.data.sys.sunrise,
       sunset: currentRes.data.sys.sunset,
-      moon_phase: 'waxing_gibbous', // placeholder: actual moon phase needs a separate calculation or API
+      moon_phase: 'waxing_gibbous' // You can replace this with accurate moon phase logic
     };
 
     // Format historical data
@@ -99,45 +96,60 @@ app.get('/weather', async (req, res) => {
       historical,
       sun_moon: sunMoon,
     });
+
   } catch (e) {
-    console.error('Weather fetch error:', e.message);
+    console.error('[Weather API Error]', e.message);
     res.status(500).json({ error: 'Failed to fetch weather data' });
   }
 });
 
-// Favorites API - Add a location
+// Endpoint: Add to favorites
 app.post('/favorites', (req, res) => {
   const { userId, location } = req.body;
-  if (!userId || !location) return res.status(400).json({ error: 'userId and location required' });
+  if (!userId || !location) {
+    return res.status(400).json({ error: 'userId and location required' });
+  }
+
   userData.favorites[userId] = userData.favorites[userId] || [];
   if (!userData.favorites[userId].includes(location)) {
     userData.favorites[userId].push(location);
   }
+
   res.json({ favorites: userData.favorites[userId] });
 });
 
-// Favorites API - Get favorites for user
+// Endpoint: Get favorites
 app.get('/favorites', (req, res) => {
-  const userId = req.query.userId;
-  if (!userId) return res.status(400).json({ error: 'userId required' });
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
   res.json({ favorites: userData.favorites[userId] || [] });
 });
 
-// Alerts API - Add alert
+// Endpoint: Add weather alert
 app.post('/alerts', (req, res) => {
   const { userId, alert } = req.body;
-  if (!userId || !alert) return res.status(400).json({ error: 'userId and alert required' });
+  if (!userId || !alert) {
+    return res.status(400).json({ error: 'userId and alert required' });
+  }
+
   userData.alerts[userId] = userData.alerts[userId] || [];
   userData.alerts[userId].push(alert);
   res.json({ alerts: userData.alerts[userId] });
 });
 
-// Alerts API - Get alerts for user
+// Endpoint: Get alerts
 app.get('/alerts', (req, res) => {
-  const userId = req.query.userId;
-  if (!userId) return res.status(400).json({ error: 'userId required' });
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
   res.json({ alerts: userData.alerts[userId] || [] });
 });
 
+// Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🌦️ WeatherWise server running at http://localhost:${PORT}`);
+});
