@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const app = express();
 app.use(express.static('public'));
+app.use(express.json());
 
 // Suggestion endpoint (uses OpenWeatherMap Geocoding API)
 app.get('/suggest', async (req, res) => {
@@ -44,6 +45,21 @@ app.get('/weather', async (req, res) => {
     res.json({ current: curRes.data, forecast: fctRes.data });
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
+
+// Endpoint for nearby places using geolocation
+app.get('/nearby', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) return res.status(400).json({ error: 'Coordinates required' });
+
+  const apiKey = process.env.API_KEY;
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/find?lat=${lat}&lon=${lon}&cnt=5&units=metric&appid=${apiKey}`;
+    const response = await axios.get(url);
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch nearby data' });
   }
 });
 
