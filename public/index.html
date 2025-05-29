@@ -1,264 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Weather App</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
+    body, html {
       margin: 0;
-      font-family: 'Inter', sans-serif;
-      color: #fff;
-      background: #121212;
+      padding: 0;
+      font-family: sans-serif;
+      height: 100%;
       overflow-x: hidden;
     }
 
-    video.bg-video {
+    #bgVideo {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      min-width: 100vw;
+      min-height: 100vh;
       object-fit: cover;
       z-index: -1;
-      filter: brightness(0.5);
+      opacity: 0.4;
     }
 
-    .container {
-      max-width: 720px;
-      margin: 60px auto;
-      padding: 30px;
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    }
-
-    h2 {
-      font-weight: 600;
-      font-size: 2rem;
+    .centered-container {
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -30%);
       text-align: center;
-      margin-bottom: 20px;
     }
 
-    input, button {
-      width: 100%;
-      padding: 12px 16px;
-      margin: 10px 0;
-      font-size: 1rem;
-      border-radius: 8px;
+    input[type="text"] {
+      padding: 12px 20px;
+      font-size: 18px;
+      width: 300px;
+      border-radius: 10px;
       border: none;
-      outline: none;
-      transition: background 0.3s;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
     }
 
-    input {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-    }
-
-    input::placeholder {
-      color: #ccc;
-    }
-
-    button {
-      background: #2196f3;
-      color: #fff;
-      font-weight: 600;
-    }
-
-    button:hover {
-      background: #1976d2;
-    }
-
-    #clearBtn {
-      background: #e91e63;
-    }
-
-    .forecast, #nearby {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 15px;
+    .button-group {
       margin-top: 15px;
     }
 
-    .card {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 15px;
-      border-radius: 12px;
-      text-align: center;
-      transition: transform 0.3s, background 0.3s;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    .saved {
-      margin-top: 30px;
-    }
-
-    .saved p {
-      margin-bottom: 10px;
-      font-weight: 600;
-    }
-
-    .saved button {
-      background: #424242;
-      color: #fff;
-      padding: 8px 14px;
-      margin: 5px 5px 0 0;
-      border-radius: 6px;
+    .button-group button {
+      margin: 5px;
+      padding: 10px 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
+      background-color: #ffffffcc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    .saved button:hover {
-      background: #616161;
+    #weather-info, #forecast, #nearby, #dayout {
+      margin-top: 30px;
+      padding: 20px;
+      color: #fff;
+      text-align: center;
     }
 
-    @media (max-width: 600px) {
-      h2 {
-        font-size: 1.5rem;
-      }
+    .card {
+      background: rgba(255,255,255,0.2);
+      margin: 10px auto;
+      padding: 15px;
+      border-radius: 10px;
+      max-width: 400px;
+      color: #fff;
+      backdrop-filter: blur(5px);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
-  <video id="bgVideo" class="bg-video" autoplay muted loop>
-    <source src="clear.mp4" type="video/mp4">
+  <video autoplay muted loop id="bgVideo">
+    <source src="clear.mp4" type="video/mp4" />
   </video>
 
-  <div class="container">
-    <h2>🌦️ Weather Forecast</h2>
-
-    <input id="city" list="suggestions" placeholder="Enter city name" autocomplete="off"/>
+  <div class="centered-container">
+    <input type="text" id="city" placeholder="Enter city name..." list="suggestions" />
     <datalist id="suggestions"></datalist>
-    <button onclick="getWeather()">Search</button>
-    <button onclick="detectNearby()">🌍 Use My Location</button>
 
-    <div id="weather-info"></div>
-
-    <h3>5-Day Forecast</h3>
-    <div class="forecast" id="forecast"></div>
-
-    <h3>Nearby Spots</h3>
-    <div id="nearby"></div>
-
-    <div class="saved" id="savedCities"></div>
-    <button id="clearBtn" onclick="clearHistory()">Clear History</button>
+    <div class="button-group">
+      <button onclick="getWeather()">🔍 Search</button>
+      <button onclick="renderSaved()">🕘 Recently Viewed</button>
+      <button onclick="detectNearby()">📍 Use My Location</button>
+    </div>
   </div>
 
-  <!-- [Keep JavaScript as-is] -->
-  <script>
-    const videoMap = {
-      clear: 'clear.mp4',
-      clouds: 'clouds.mp4',
-      rain: 'rain.mp4',
-      snow: 'snow.mp4',
-      thunderstorm: 'storm.mp4',
-      default: 'clear.mp4'
-    };
+  <div id="weather-info"></div>
+  <div id="forecast"></div>
+  <div id="nearby"></div>
+  <div id="dayout"></div>
 
-    const cityInput = document.getElementById('city');
-    const suggestionList = document.getElementById('suggestions');
-    let suggestTimeout;
-
-    cityInput.addEventListener('input', () => {
-      clearTimeout(suggestTimeout);
-      const q = cityInput.value.trim();
-      if (q.length < 1) return suggestionList.innerHTML = '';
-      suggestTimeout = setTimeout(async () => {
-        const res = await fetch(`/suggest?q=${encodeURIComponent(q)}`);
-        const items = await res.json();
-        suggestionList.innerHTML = items.map(n => `<option value="${n}">`).join('');
-      }, 300);
-    });
-
-    function saveCity(c) {
-      let cities = JSON.parse(localStorage.getItem('cities')||'[]');
-      if (!cities.includes(c)) {
-        cities.push(c);
-        localStorage.setItem('cities', JSON.stringify(cities));
-      }
-    }
-
-    function renderSaved() {
-      const cities = JSON.parse(localStorage.getItem('cities')||'[]');
-      const cont = document.getElementById('savedCities');
-      const clearBtn = document.getElementById('clearBtn');
-      if (!cities.length) {
-        cont.innerHTML = '';
-        clearBtn.style.display = 'none';
-        return;
-      }
-      cont.innerHTML = '<p>Recently searched:</p>' +
-        cities.map(c => `<button onclick="getWeather('${c}')">${c}</button>`).join('');
-      clearBtn.style.display = 'block';
-    }
-
-    function clearHistory() {
-      localStorage.removeItem('cities');
-      renderSaved();
-    }
-
-    async function getWeather(cityName) {
-      const city = cityName || cityInput.value.trim();
-      if (!city) return;
-      saveCity(city);
-      renderSaved();
-
-      const res = await fetch(`/weather?city=${encodeURIComponent(city)}`);
-      const data = await res.json();
-      if (data.error) {
-        document.getElementById('weather-info').innerHTML = '<p>City not found.</p>';
-        return;
-      }
-
-      const cur = data.current;
-      const fct = data.forecast;
-      const type = cur.weather[0].main.toLowerCase();
-      document.getElementById('bgVideo').src = videoMap[type] || videoMap.default;
-
-      document.getElementById('weather-info').innerHTML = `
-        <p><strong>${cur.name}</strong></p>
-        <p>🌡️ ${cur.main.temp}°C — ${cur.weather[0].description}</p>
-        <p>💧 ${cur.main.humidity}% | 🍃 ${cur.wind.speed} m/s</p>
-      `;
-
-      const html = fct.list
-        .filter((_, i) => i % 8 === 0)
-        .map(d => {
-          const day = new Date(d.dt*1000).toLocaleDateString();
-          return `<div class="card">
-            <p><strong>${day}</strong></p>
-            <p>${d.weather[0].main}</p>
-            <p>${d.main.temp}°C</p>
-          </div>`;
-        }).join('');
-      document.getElementById('forecast').innerHTML = html;
-    }
-
-    async function detectNearby() {
-      if (!navigator.geolocation) return alert('Geolocation not supported.');
-      navigator.geolocation.getCurrentPosition(async pos => {
-        const { latitude, longitude } = pos.coords;
-        const res = await fetch(`/nearby?lat=${latitude}&lon=${longitude}`);
-        const data = await res.json();
-        const spots = data.list.map(loc => `
-          <div class="card">
-            <p><strong>${loc.name}</strong></p>
-            <p>🌡️ ${loc.main.temp}°C — ${loc.weather[0].description}</p>
-            <p>💧 ${loc.main.humidity}% | 🍃 ${loc.wind.speed} m/s</p>
-          </div>
-        `).join('');
-        document.getElementById('nearby').innerHTML = spots;
-      });
-    }
-
-    renderSaved();
-  </script>
+  <script src="index.js"></script>
 </body>
 </html>
