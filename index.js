@@ -1,59 +1,52 @@
-async function detectNearby() {
-  if (!navigator.geolocation) return alert('Geolocation not supported.');
+// index.js
+const express = require('express');
+const axios = require('axios');
+require('dotenv').config();
 
-  navigator.geolocation.getCurrentPosition(async pos => {
-    const { latitude, longitude } = pos.coords;
+const app = express();
+app.use(express.static('public'));
 
-    // OpenCage: Reverse geocode to get city
-    const opencageKey = '51d3a41ce63d4180828c457a896dcd0e';
-    const geoRes = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${opencageKey}`);
-    const geoData = await geoRes.json();
+// Suggestion endpoint (uses OpenWeatherMap Geocoding API)
+app.get('/suggest', async (req, res) => {
+  const q = req.query.q;
+  if (!q || q.length < 1) return res.json([]);
+  const apiKey = process.env.API_KEY;
+  const url = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${apiKey}`;
+  try {
+    const response = await axios.get(url);
+    const suggestions = response.data.map(loc => {
+      let name = loc.name;
+      if (loc.state) name += `, ${loc.state}`;
+      name += `, ${loc.country}`;
+      return name;
+    });
+    res.json(suggestions);
+  } catch (err) {
+    res.status(500).json([]);
+  }
+});
 
-    const city = geoData?.results[0]?.components?.city || geoData?.results[0]?.components?.town || geoData?.results[0]?.components?.village || 'your location';
+// Weather + Forecast endpoint
+app.get('/weather', async (req, res) => {
+  const city = req.query.city;
+  if (!city) return res.status(400).json({ error: 'City required' });
+  const key = process.env.API_KEY;
+  const urls = {
+    current: `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${key}&units=metric`,
+    forecast: `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${key}&units=metric`
+  };
 
-    getWeather(city); // show weather
+  try {
+    const [curRes, fctRes] = await Promise.all([
+      axios.get(urls.current),
+      axios.get(urls.forecast)
+    ]);
+    res.json({ current: curRes.data, forecast: fctRes.data });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
 
-    // Nearby weather
-    const nearbyRes = await fetch(`/nearby?lat=${latitude}&lon=${longitude}`);
-    const data = await nearbyRes.json();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
-    const spots = data.list.map(loc => `
-      <div class="card">
-        <p><strong>${loc.name}</strong></p>
-        <p>${loc.weather[0].main} | ${loc.main.temp}°C</p>
-      </div>
-    `).join('');
-    document.getElementById('nearby').innerHTML = `<h3>Nearby Weather</h3>` + spots;
-
-    // Suggest places using OpenCage's "tourism" tag + weather
-    const dayOutSpots = geoData.results.filter(r =>
-      r.components.tourism || r.components.attraction
-    ).slice(0, 5).map(place => `
-      <div class="card">
-        <p><strong>${place.formatted}</strong></p>
-        <p>Category: ${place.components.tourism || place.components.attraction}</p>
-        <p>🕐 Best Time: ${suggestBestTime(data.list[0])}</p>
-      </div>
-    `).join('');
-
-    document.getElementById('dayout').innerHTML = `
-      <h3>Recommended Day Out Spots Near ${city}</h3>
-      ${dayOutSpots || '<p>No specific attractions found. Try searching manually.</p>'}
-    `;
-  }, err => {
-    alert("Unable to retrieve your location.");
-    console.error(err);
-  });
-}
-
-// Suggest best time based on weather conditions
-function suggestBestTime(weather) {
-  if (!weather) return "N/A";
-  const temp = weather.main.temp;
-  const condition = weather.weather[0].main.toLowerCase();
-
-  if (condition.includes('rain') || condition.includes('storm')) return "Avoid today – bad weather";
-  if (temp >= 20 && temp <= 30) return "Morning or Evening";
-  if (temp > 30) return "Evening (too hot)";
-  return "Midday or Afternoon";
-}
