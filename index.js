@@ -5,7 +5,7 @@ async function detectNearby() {
     const { latitude, longitude } = pos.coords;
 
     // OpenCage: Reverse geocode to get city
-    const opencageKey = 'YOUR_OPENCAGE_API_KEY';
+    const opencageKey = '51d3a41ce63d4180828c457a896dcd0e';
     const geoRes = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${opencageKey}`);
     const geoData = await geoRes.json();
 
