@@ -1,10 +1,9 @@
-// index.js
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(express.static('public'));
+app.use(express.static('public')); // serve your frontend files here
 
 // Suggestion endpoint (uses OpenWeatherMap Geocoding API)
 app.get('/suggest', async (req, res) => {
@@ -47,6 +46,22 @@ app.get('/weather', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// New Nearby weather endpoint (used in your detectNearby function)
+app.get('/nearby', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) return res.status(400).json({ error: 'lat and lon required' });
 
+  const key = process.env.API_KEY;
+  // OpenWeatherMap "find" API to get weather for nearby locations within 50 km radius
+  const url = `https://api.openweathermap.org/data/2.5/find?lat=${lat}&lon=${lon}&cnt=10&units=metric&appid=${key}`;
+
+  try {
+    const response = await axios.get(url);
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch nearby weather data' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
