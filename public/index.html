@@ -2,138 +2,136 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Weather App with Location Permission</title>
+  <title>Weather App with Location</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-
-    #modal {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #fff;
-      font-size: 1.2rem;
-      z-index: 1000;
-    }
-
-    #modal-content {
-      background: #222;
-      padding: 30px;
-      border-radius: 12px;
-      max-width: 400px;
-      text-align: center;
-    }
-
-    button {
-      margin: 10px;
-      padding: 10px 20px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    button#grant {
-      background-color: #00bcd4;
-      color: #fff;
-    }
-
-    button#deny {
-      background-color: #e91e63;
-      color: #fff;
-    }
-
-    #weather {
-      margin-top: 20px;
-    }
-
-    #manual-search {
-      display: none;
-      margin-top: 20px;
-    }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 0 15px; }
+    #weather { margin-top: 20px; }
+    #manual-search { margin-top: 20px; }
+    #loading { display: none; font-style: italic; }
+    input, button { padding: 8px; font-size: 1rem; margin-right: 5px; }
   </style>
 </head>
 <body>
-
   <h1>Weather App</h1>
 
-  <div id="modal">
-    <div id="modal-content">
-      <p>We’d like to access your location to show weather info for your area.</p>
-      <button id="grant">Grant Permission</button>
-      <button id="deny">Deny</button>
-    </div>
-  </div>
+  <div id="loading">Loading location and weather...</div>
 
   <div id="weather"></div>
 
-  <div id="manual-search">
+  <div id="manual-search" style="display:none;">
     <h3>Search weather by city</h3>
     <input type="text" id="city" placeholder="Enter city name" />
     <button onclick="fetchWeatherByCity()">Search</button>
   </div>
 
   <script>
-    const modal = document.getElementById('modal');
     const weatherDiv = document.getElementById('weather');
     const manualSearchDiv = document.getElementById('manual-search');
+    const loadingDiv = document.getElementById('loading');
+
+    function showLoading(show) {
+      loadingDiv.style.display = show ? 'block' : 'none';
+    }
+
+    function displayWeather(data) {
+      if (!data || !data.current) {
+        weatherDiv.textContent = 'No weather data available.';
+        return;
+      }
+
+      const c = data.current;
+      const f = data.forecast;
+      const weatherHtml = `
+        <h2>Weather in ${c.name}, ${c.sys.country}</h2>
+        <p><strong>${c.weather[0].main}</strong> - ${c.weather[0].description}</p>
+        <p>Temperature: ${c.main.temp} °C</p>
+        <p>Humidity: ${c.main.humidity}%</p>
+        <p>Wind Speed: ${c.wind.speed} m/s</p>
+        <h3>Forecast (next 5 periods)</h3>
+        <ul>
+          ${f.list.slice(0, 5).map(item => `
+            <li>${new Date(item.dt * 1000).toLocaleString()}: ${item.weather[0].main}, Temp: ${item.main.temp} °C</li>
+          `).join('')}
+        </ul>
+      `;
+      weatherDiv.innerHTML = weatherHtml;
+    }
 
     function fetchWeatherByCoords(lat, lon) {
-      fetch(`https://wttr.in/${lat},${lon}?format=3`)
-        .then(res => res.text())
-        .then(weather => {
-          weatherDiv.textContent = `📍 ${weather}`;
+      showLoading(true);
+      fetch(`/weather?lat=${lat}&lon=${lon}`)
+        .then(res => res.json())
+        .then(data => {
+          showLoading(false);
+          if (data.error) {
+            weatherDiv.textContent = '❌ ' + data.error;
+            manualSearchDiv.style.display = 'block';
+          } else {
+            displayWeather(data);
+          }
         })
         .catch(() => {
-          weatherDiv.textContent = "❌ Failed to fetch weather data.";
-          showManualSearch();
+          showLoading(false);
+          weatherDiv.textContent = '❌ Failed to fetch weather data.';
+          manualSearchDiv.style.display = 'block';
         });
     }
 
     function fetchWeatherByCity() {
       const city = document.getElementById('city').value.trim();
       if (!city) return;
-      fetch(`https://wttr.in/${city}?format=3`)
-        .then(res => res.text())
-        .then(weather => {
-          weatherDiv.textContent = `📍 ${weather}`;
+      showLoading(true);
+      fetch(`/weather?city=${encodeURIComponent(city)}`)
+        .then(res => res.json())
+        .then(data => {
+          showLoading(false);
+          if (data.error) {
+            weatherDiv.textContent = '❌ ' + data.error;
+          } else {
+            displayWeather(data);
+          }
         })
         .catch(() => {
-          weatherDiv.textContent = "❌ Failed to fetch weather data.";
+          showLoading(false);
+          weatherDiv.textContent = '❌ Failed to fetch weather data.';
         });
     }
 
-    function showManualSearch() {
-      manualSearchDiv.style.display = 'block';
+    function fetchLocationFromIP() {
+      fetch('/location')
+        .then(res => res.json())
+        .then(data => {
+          if (data.latitude && data.longitude) {
+            fetchWeatherByCoords(data.latitude, data.longitude);
+          } else {
+            weatherDiv.textContent = "⚠️ Couldn't get location from IP.";
+            manualSearchDiv.style.display = 'block';
+          }
+        })
+        .catch(() => {
+          weatherDiv.textContent = "⚠️ Couldn't get location from IP.";
+          manualSearchDiv.style.display = 'block';
+        });
     }
 
-    document.getElementById('grant').addEventListener('click', () => {
-      modal.style.display = 'none';
-
+    // On load: try browser geolocation, else fallback to IP-based
+    window.onload = () => {
+      showLoading(true);
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           pos => {
             fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
           },
           err => {
-            weatherDiv.textContent = "⚠️ Unable to get location.";
-            showManualSearch();
-          }
+            // Permission denied or error → fallback to IP location
+            fetchLocationFromIP();
+          },
+          { timeout: 10000 }
         );
       } else {
-        weatherDiv.textContent = "⚠️ Geolocation not supported by your browser.";
-        showManualSearch();
+        fetchLocationFromIP();
       }
-    });
-
-    document.getElementById('deny').addEventListener('click', () => {
-      modal.style.display = 'none';
-      weatherDiv.textContent = "Location access denied. You can search manually.";
-      showManualSearch();
-    });
+    }
   </script>
-
 </body>
 </html>
