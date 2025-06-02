@@ -5,83 +5,62 @@ require('dotenv').config();
 const app = express();
 app.use(express.static('public'));
 
-// Suggestion endpoint (uses OpenWeatherMap Geocoding API)
-app.get('/suggest', async (req, res) => {
-  const q = req.query.q;
-  if (!q || q.length < 1) return res.json([]);
-  const apiKey = process.env.API_KEY;
-  const url = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${apiKey}`;
+// Endpoint to get location by IP (called by frontend fallback)
+app.get('/location', async (req, res) => {
   try {
+    // Get client's IP from request headers or connection
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+
+    // You can log IP to debug:
+    // console.log('Client IP:', ip);
+
+    // Use ipinfo.io API (replace 'YOUR_IPINFO_TOKEN' with your token if needed)
+    // Free tier doesn't require token, but better to get one for production
+    const url = `https://ipinfo.io/${ip}/json`;
+
     const response = await axios.get(url);
-    const suggestions = response.data.map(loc => {
-      let name = loc.name;
-      if (loc.state) name += `, ${loc.state}`;
-      name += `, ${loc.country}`;
-      return name;
-    });
-    res.json(suggestions);
-  } catch (err) {
-    res.status(500).json([]);
+    const loc = response.data.loc; // loc = "lat,lon"
+
+    if (!loc) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+
+    const [latitude, longitude] = loc.split(',');
+
+    res.json({ latitude, longitude, city: response.data.city, region: response.data.region, country: response.data.country });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get location from IP' });
   }
 });
 
 // Weather + Forecast endpoint
 app.get('/weather', async (req, res) => {
-  const city = req.query.city;
-  if (!city) return res.status(400).json({ error: 'City required' });
-  const key = process.env.API_KEY;
-  const urls = {
-    current: `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${key}&units=metric`,
-    forecast: `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${key}&units=metric`
-  };
-
+  const { city, lat, lon } = req.query;
+  const apiKey = process.env.API_KEY;
   try {
-    const [curRes, fctRes] = await Promise.all([
-      axios.get(urls.current),
-      axios.get(urls.forecast)
+    let currentUrl = '';
+    let forecastUrl = '';
+
+    if (city) {
+      currentUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`;
+      forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`;
+    } else if (lat && lon) {
+      currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+      forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+    } else {
+      return res.status(400).json({ error: 'City or lat/lon required' });
+    }
+
+    const [currentRes, forecastRes] = await Promise.all([
+      axios.get(currentUrl),
+      axios.get(forecastUrl)
     ]);
-    res.json({ current: curRes.data, forecast: fctRes.data });
+
+    res.json({ current: currentRes.data, forecast: forecastRes.data });
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch weather data' });
   }
 });
 
-// New: Location endpoint to get user location by IP
-app.get('/location', async (req, res) => {
-  let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
-
-  if (ip.includes(',')) {
-    ip = ip.split(',')[0].trim();
-  }
-
-  if (ip.startsWith('::ffff:')) {
-    ip = ip.substring(7);
-  }
-
-  // For local testing fallback
-  if (ip === '127.0.0.1' || ip === '::1') {
-    ip = '8.8.8.8';  // fallback to Google's public DNS IP
-  }
-
-  try {
-    const response = await axios.get(`https://ipinfo.io/${ip}/json`);
-    const data = response.data;
-    res.json({
-      ip: data.ip,
-      city: data.city,
-      region: data.region,
-      country: data.country,
-      loc: data.loc,
-      postal: data.postal,
-      timezone: data.timezone
-    });
-  } catch (error) {
-    console.error('IP Info API error:', error.message);
-    res.status(500).json({ error: 'Failed to get location info' });
-  }
-});
-
-const HOST = '127.0.0.1';
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, HOST, () => console.log(`Server running on http://${HOST}:${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
