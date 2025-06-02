@@ -1,4 +1,3 @@
-// index.js
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
@@ -47,10 +46,42 @@ app.get('/weather', async (req, res) => {
   }
 });
 
+// New: Location endpoint to get user location by IP
+app.get('/location', async (req, res) => {
+  let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+
+  if (ip.includes(',')) {
+    ip = ip.split(',')[0].trim();
+  }
+
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+
+  // For local testing fallback
+  if (ip === '127.0.0.1' || ip === '::1') {
+    ip = '8.8.8.8';  // fallback to Google's public DNS IP
+  }
+
+  try {
+    const response = await axios.get(`https://ipinfo.io/${ip}/json`);
+    const data = response.data;
+    res.json({
+      ip: data.ip,
+      city: data.city,
+      region: data.region,
+      country: data.country,
+      loc: data.loc,
+      postal: data.postal,
+      timezone: data.timezone
+    });
+  } catch (error) {
+    console.error('IP Info API error:', error.message);
+    res.status(500).json({ error: 'Failed to get location info' });
+  }
+});
+
 const HOST = '127.0.0.1';
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, HOST, () => console.log(`Server running on http://${HOST}:${PORT}`));
-
-
-
