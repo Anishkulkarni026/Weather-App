@@ -1,152 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Weather App with Location</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Weather App</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
   <style>
-    /* Reset and base */
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 0 20px 40px;
-      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
-      color: #333;
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      user-select: none;
+      margin: 0; font-family: 'Roboto', sans-serif;
+      color: #fff; overflow-x: hidden; background: #000;
     }
-    h1 {
+    video.bg-video {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      z-index: -1;
+    }
+    .container {
+      max-width: 700px; margin: 30px auto;
+      padding: 20px; background: rgba(0,0,0,0.5);
+      border-radius: 15px;
+    }
+    input, button {
+      width: 100%; padding: 10px; margin: 5px 0;
+      border: none; border-radius: 8px; font-size: 1rem;
+    }
+    button { background: #03a9f4; cursor: pointer; color: #fff; font-weight: bold; }
+    .forecast {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+    }
+    .card {
+      background: rgba(255,255,255,0.1);
+      flex: 1 1 100px; padding: 10px; border-radius: 8px;
       text-align: center;
-      margin-bottom: 1rem;
-      color: #fff;
-      text-shadow: 0 0 8px rgba(0,0,0,0.3);
-      font-weight: 700;
+    }
+    h1, h2, h3, p {
+      margin: 10px 0;
+      text-align: center;
     }
     #loading {
-      font-style: italic;
       text-align: center;
-      margin-bottom: 1rem;
-      color: #fff;
+      font-style: italic;
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
       0%, 100% {opacity: 1;}
       50% {opacity: 0.6;}
     }
-    #weather {
-      background: rgba(255, 255, 255, 0.85);
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      line-height: 1.5;
-    }
-    #weather h2 {
-      margin-top: 0;
-      color: #333;
-      font-weight: 700;
-      border-bottom: 2px solid #74ebd5;
-      padding-bottom: 5px;
-    }
-    #weather p {
-      margin: 6px 0;
-      font-size: 1.1rem;
-      color: #444;
-    }
-    #weather ul {
-      list-style: none;
-      padding-left: 0;
-      margin-top: 10px;
-    }
-    #weather ul li {
-      background: #74ebd5;
-      margin-bottom: 8px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      color: #02475e;
-      font-weight: 600;
-      box-shadow: inset 0 2px 5px rgba(255,255,255,0.7);
-      transition: background-color 0.3s ease;
-    }
-    #weather ul li:hover {
-      background-color: #4fc3cf;
-      cursor: default;
-    }
-    #manual-search {
-      margin-top: 30px;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 18px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    #manual-search h3 {
-      margin: 0 0 15px;
-      color: #333;
-    }
-    input[type="text"] {
-      width: 70%;
-      padding: 12px 15px;
-      font-size: 1rem;
-      border: 2px solid #74ebd5;
-      border-radius: 25px;
-      outline: none;
-      transition: border-color 0.3s ease;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    input[type="text"]:focus {
-      border-color: #4fc3cf;
-      box-shadow: 0 0 8px #4fc3cf;
-    }
-    button {
-      background: #4fc3cf;
-      border: none;
-      color: white;
-      font-weight: 700;
-      padding: 12px 20px;
-      font-size: 1rem;
-      border-radius: 25px;
-      cursor: pointer;
-      box-shadow: 0 6px 12px rgba(79,195,207,0.6);
-      transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    }
-    button:hover {
-      background: #36b0bc;
-      box-shadow: 0 8px 16px rgba(54,176,188,0.8);
-    }
-    button:active {
-      transform: scale(0.98);
-    }
-    /* Responsive */
-    @media (max-width: 480px) {
-      body {
-        max-width: 90%;
-        margin: 20px auto;
-      }
-      input[type="text"] {
-        width: 100%;
-        margin-bottom: 12px;
-      }
-      button {
-        width: 100%;
-      }
-    }
   </style>
 </head>
 <body>
-  <h1>Weather App</h1>
+  <video id="bgVideo" class="bg-video" autoplay muted loop>
+    <source src="clear.mp4" type="video/mp4">
+  </video>
 
-  <div id="loading">Loading location and weather...</div>
+  <div class="container">
+    <h1>Weather App</h1>
+    <div id="loading">Detecting your location...</div>
+    <div id="weather"></div>
 
-  <div id="weather"></div>
-
-  <div id="manual-search" style="display:none;">
-    <h3>Search weather by city</h3>
-    <input type="text" id="city" placeholder="Enter city name" />
-    <button onclick="fetchWeatherByCity()">Search</button>
+    <div id="manual-search" style="display: none;">
+      <h3>Search Weather by City</h3>
+      <input type="text" id="city" placeholder="Enter city name"/>
+      <button onclick="fetchWeatherByCity()">Search</button>
+    </div>
   </div>
 
   <script>
@@ -166,20 +83,22 @@
 
       const c = data.current;
       const f = data.forecast;
-      const weatherHtml = `
+      const forecastHtml = f.list.slice(0, 5).map(item => `
+        <div class="card">
+          <p>${new Date(item.dt * 1000).toLocaleString()}</p>
+          <p>${item.weather[0].main}</p>
+          <p>${item.main.temp} °C</p>
+        </div>`).join('');
+
+      weatherDiv.innerHTML = `
         <h2>Weather in ${c.name}, ${c.sys.country}</h2>
         <p><strong>${c.weather[0].main}</strong> - ${c.weather[0].description}</p>
         <p>Temperature: ${c.main.temp} °C</p>
         <p>Humidity: ${c.main.humidity}%</p>
         <p>Wind Speed: ${c.wind.speed} m/s</p>
-        <h3>Forecast (next 5 periods)</h3>
-        <ul>
-          ${f.list.slice(0, 5).map(item => `
-            <li>${new Date(item.dt * 1000).toLocaleString()}: ${item.weather[0].main}, Temp: ${item.main.temp} °C</li>
-          `).join('')}
-        </ul>
+        <h3>Forecast</h3>
+        <div class="forecast">${forecastHtml}</div>
       `;
-      weatherDiv.innerHTML = weatherHtml;
     }
 
     function fetchWeatherByCoords(lat, lon) {
@@ -222,41 +141,23 @@
         });
     }
 
-    function fetchLocationFromIP() {
-      fetch('/location')
-        .then(res => res.json())
-        .then(data => {
-          if (data.latitude && data.longitude) {
-            fetchWeatherByCoords(data.latitude, data.longitude);
-          } else {
-            weatherDiv.textContent = "⚠️ Couldn't get location from IP.";
-            manualSearchDiv.style.display = 'block';
-          }
-        })
-        .catch(() => {
-          weatherDiv.textContent = "⚠️ Couldn't get location from IP.";
-          manualSearchDiv.style.display = 'block';
-        });
-    }
-
-    // On load: try browser geolocation, else fallback to IP-based
+    // Only geolocation-based load
     window.onload = () => {
       showLoading(true);
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          pos => {
-            fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
-          },
+          pos => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
           err => {
-            // Permission denied or error → fallback to IP location
-            fetchLocationFromIP();
+            loadingDiv.textContent = "⚠️ Geolocation failed. Please search manually.";
+            manualSearchDiv.style.display = 'block';
           },
           { timeout: 10000 }
         );
       } else {
-        fetchLocationFromIP();
+        loadingDiv.textContent = "⚠️ Geolocation not supported.";
+        manualSearchDiv.style.display = 'block';
       }
-    }
+    };
   </script>
 </body>
 </html>
