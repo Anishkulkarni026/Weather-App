@@ -9,13 +9,9 @@ app.use(express.static('public'));
 app.get('/location', async (req, res) => {
   try {
     // Get client's IP from request headers or connection
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
-    // You can log IP to debug:
-    // console.log('Client IP:', ip);
-
-    // Use ipinfo.io API (replace 'YOUR_IPINFO_TOKEN' with your token if needed)
-    // Free tier doesn't require token, but better to get one for production
+    // Use ipinfo.io API (replace with your token if you want, free tier can work without)
     const url = `https://ipinfo.io/${ip}/json`;
 
     const response = await axios.get(url);
@@ -27,7 +23,13 @@ app.get('/location', async (req, res) => {
 
     const [latitude, longitude] = loc.split(',');
 
-    res.json({ latitude, longitude, city: response.data.city, region: response.data.region, country: response.data.country });
+    res.json({ 
+      latitude, 
+      longitude, 
+      city: response.data.city, 
+      region: response.data.region, 
+      country: response.data.country 
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get location from IP' });
   }
@@ -37,6 +39,7 @@ app.get('/location', async (req, res) => {
 app.get('/weather', async (req, res) => {
   const { city, lat, lon } = req.query;
   const apiKey = process.env.API_KEY;
+
   try {
     let currentUrl = '';
     let forecastUrl = '';
@@ -59,6 +62,48 @@ app.get('/weather', async (req, res) => {
     res.json({ current: currentRes.data, forecast: forecastRes.data });
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
+
+// Nearby tourist places endpoint using Foursquare Places API
+app.get('/places', async (req, res) => {
+  const { lat, lon } = req.query;
+
+  if (!lat || !lon) {
+    return res.status(400).json({ error: 'Latitude and longitude are required' });
+  }
+
+  try {
+    const fsqApiKey = process.env.FSQ_API_KEY;
+    const url = 'https://api.foursquare.com/v3/places/search';
+
+    const params = {
+      ll: `${lat},${lon}`,
+      radius: 1000,          // 1 km radius
+      categories: '16000',   // Tourist Attractions category
+      limit: 10
+    };
+
+    const response = await axios.get(url, {
+      params,
+      headers: {
+        'Authorization': fsqApiKey,
+        'Accept': 'application/json'
+      }
+    });
+
+    const places = response.data.results.map(place => ({
+      id: place.fsq_id,
+      name: place.name,
+      location: place.location,
+      categories: place.categories.map(c => c.name),
+      distance: place.distance
+    }));
+
+    res.json({ places });
+  } catch (error) {
+    console.error('Error fetching places:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch places' });
   }
 });
 
