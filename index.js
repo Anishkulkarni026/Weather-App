@@ -95,7 +95,7 @@ app.get('/', (req, res) => {
 
 // Foursquare Places API
 async function getPlacesToVisit(city) {
-  const url = \`https://api.foursquare.com/v3/places/search?near=\${encodeURIComponent(city)}&categories=16000&limit=5&sort=POPULARITY\`;
+  const url = `https://api.foursquare.com/v3/places/search?near=\${encodeURIComponent(city)}&categories=16000&limit=5&sort=POPULARITY\`;
 
   try {
     const response = await axios.get(url, {
