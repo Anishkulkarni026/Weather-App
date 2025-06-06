@@ -8,12 +8,14 @@
   <style>
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
     body {
-      margin: 0;
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(to right, #1e3c72, #2a5298);
-      color: #fff;
+      background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+      color: #ffffff;
+      overflow-x: hidden;
     }
     video.bg-video {
       position: fixed;
@@ -21,59 +23,64 @@
       width: 100%; height: 100%;
       object-fit: cover;
       z-index: -1;
-      opacity: 0.2;
+      opacity: 0.15;
     }
     .container {
-      max-width: 800px;
-      margin: 60px auto;
-      padding: 30px;
-      background: rgba(0, 0, 0, 0.6);
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      max-width: 900px;
+      margin: 80px auto;
+      padding: 40px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 25px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
     }
     h1 {
-      font-size: 2.5rem;
+      font-size: 3rem;
       text-align: center;
-      margin-bottom: 20px;
-      color: #03a9f4;
+      margin-bottom: 30px;
+      color: #00c6ff;
+      text-shadow: 2px 2px 6px #000000;
     }
     input, button {
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
+      padding: 15px;
+      margin: 15px 0;
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       font-size: 1rem;
     }
     input {
-      background: #fff;
-      color: #000;
+      background: #f2f2f2;
+      color: #333;
     }
     button {
-      background: #03a9f4;
-      color: #fff;
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      color: white;
       font-weight: bold;
-      transition: background 0.3s ease;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
     button:hover {
-      background: #0288d1;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 198, 255, 0.5);
     }
     .forecast {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 15px;
-      margin-top: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
     }
     .card {
-      background: rgba(255,255,255,0.15);
-      padding: 15px;
-      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 15px;
       text-align: center;
-      transition: transform 0.3s ease;
+      transition: transform 0.3s ease, background 0.3s ease;
+      border: 1px solid rgba(255,255,255,0.2);
     }
     .card:hover {
-      transform: translateY(-5px);
-      background: rgba(255,255,255,0.25);
+      transform: translateY(-8px);
+      background: rgba(255,255,255,0.2);
     }
     h2, h3, p {
       margin: 10px 0;
@@ -90,7 +97,10 @@
       50% {opacity: 0.6;}
     }
     #manual-search {
-      margin-top: 20px;
+      margin-top: 30px;
+    }
+    #weather p strong {
+      font-size: 1.2rem;
     }
   </style>
 </head>
@@ -126,7 +136,7 @@
       const f = data.forecast;
       const forecastHtml = f.list.slice(0, 5).map(item => `
         <div class="card">
-          <p>${new Date(item.dt * 1000).toLocaleString()}</p>
+          <p><strong>${new Date(item.dt * 1000).toLocaleString()}</strong></p>
           <p>${item.weather[0].main}</p>
           <p>${item.main.temp} °C</p>
         </div>`).join('');
