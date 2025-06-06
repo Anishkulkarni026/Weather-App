@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
     </head>
     <body class="bg-light">
         <div class="container py-5">
-            <h2 class="text-center mb-4">🌤️ Weather & Places Finder</h2>
+            <h2 class="text-center mb-4">🌤 Weather & Places Finder</h2>
             <div class="input-group mb-3">
                 <input
                   type="text"
