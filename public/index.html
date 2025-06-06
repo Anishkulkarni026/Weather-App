@@ -2,39 +2,80 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Weather App</title>
-  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Forecast</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
     body {
-      margin: 0; font-family: 'Roboto', sans-serif;
-      color: #fff; overflow-x: hidden; background: #000;
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(to right, #1e3c72, #2a5298);
+      color: #fff;
     }
     video.bg-video {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%; object-fit: cover;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
       z-index: -1;
+      opacity: 0.2;
     }
     .container {
-      max-width: 700px; margin: 30px auto;
-      padding: 20px; background: rgba(0,0,0,0.5);
-      border-radius: 15px;
+      max-width: 800px;
+      margin: 60px auto;
+      padding: 30px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #03a9f4;
     }
     input, button {
-      width: 100%; padding: 10px; margin: 5px 0;
-      border: none; border-radius: 8px; font-size: 1rem;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
     }
-    button { background: #03a9f4; cursor: pointer; color: #fff; font-weight: bold; }
+    input {
+      background: #fff;
+      color: #000;
+    }
+    button {
+      background: #03a9f4;
+      color: #fff;
+      font-weight: bold;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #0288d1;
+    }
     .forecast {
-      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
     }
     .card {
-      background: rgba(255,255,255,0.1);
-      flex: 1 1 100px; padding: 10px; border-radius: 8px;
+      background: rgba(255,255,255,0.15);
+      padding: 15px;
+      border-radius: 12px;
       text-align: center;
+      transition: transform 0.3s ease;
     }
-    h1, h2, h3, p {
+    .card:hover {
+      transform: translateY(-5px);
+      background: rgba(255,255,255,0.25);
+    }
+    h2, h3, p {
       margin: 10px 0;
       text-align: center;
     }
@@ -42,10 +83,14 @@
       text-align: center;
       font-style: italic;
       animation: pulse 1.5s infinite;
+      color: #ccc;
     }
     @keyframes pulse {
       0%, 100% {opacity: 1;}
       50% {opacity: 0.6;}
+    }
+    #manual-search {
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -53,19 +98,16 @@
   <video id="bgVideo" class="bg-video" autoplay muted loop>
     <source src="clear.mp4" type="video/mp4">
   </video>
-
   <div class="container">
-    <h1>Weather App</h1>
+    <h1>Weather Forecast</h1>
     <div id="loading">Detecting your location...</div>
     <div id="weather"></div>
-
     <div id="manual-search" style="display: none;">
       <h3>Search Weather by City</h3>
       <input type="text" id="city" placeholder="Enter city name"/>
       <button onclick="fetchWeatherByCity()">Search</button>
     </div>
   </div>
-
   <script>
     const weatherDiv = document.getElementById('weather');
     const manualSearchDiv = document.getElementById('manual-search');
@@ -80,7 +122,6 @@
         weatherDiv.textContent = 'No weather data available.';
         return;
       }
-
       const c = data.current;
       const f = data.forecast;
       const forecastHtml = f.list.slice(0, 5).map(item => `
@@ -96,7 +137,7 @@
         <p>Temperature: ${c.main.temp} °C</p>
         <p>Humidity: ${c.main.humidity}%</p>
         <p>Wind Speed: ${c.wind.speed} m/s</p>
-        <h3>Forecast</h3>
+        <h3>5-Day Forecast</h3>
         <div class="forecast">${forecastHtml}</div>
       `;
     }
@@ -141,7 +182,6 @@
         });
     }
 
-    // Only geolocation-based load
     window.onload = () => {
       showLoading(true);
       if (navigator.geolocation) {
