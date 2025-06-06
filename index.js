@@ -95,7 +95,7 @@ app.get('/', (req, res) => {
 
 // Foursquare Places API
 async function getPlacesToVisit(city) {
-  const url = `https://api.foursquare.com/v3/places/search?near=\${encodeURIComponent(city)}&categories=16000&limit=5&sort=POPULARITY\`;
+  const url = `https://api.foursquare.com/v3/places/search?near=${encodeURIComponent(city)}&categories=16000&limit=5&sort=POPULARITY`;
 
   try {
     const response = await axios.get(url, {
@@ -115,7 +115,7 @@ async function getPlacesToVisit(city) {
 
 // Static best time function
 function getBestTimeToVisit(city) {
-  return \`Spring and Autumn months are generally best to visit \${city}.\`;
+  return `Spring and Autumn months are generally best to visit ${city}.`;
 }
 
 // Weather endpoint
@@ -125,11 +125,11 @@ app.get('/weather', async (req, res) => {
 
   try {
     const currentRes = await axios.get(
-      \`https://api.openweathermap.org/data/2.5/weather?q=\${encodeURIComponent(city)}&units=metric&appid=\${WEATHER_API_KEY}\`
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${WEATHER_API_KEY}`
     );
 
     const forecastRes = await axios.get(
-      \`https://api.openweathermap.org/data/2.5/forecast?q=\${encodeURIComponent(city)}&units=metric&appid=\${WEATHER_API_KEY}\`
+      `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${WEATHER_API_KEY}`
     );
 
     const placesToVisit = await getPlacesToVisit(city);
@@ -148,4 +148,4 @@ app.get('/weather', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(\`Server running on port \${PORT}\`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
