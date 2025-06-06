@@ -63,6 +63,31 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
+    function groupForecastByDay(forecastList) {
+      // Group forecasts by date (YYYY-MM-DD)
+      const days = {};
+
+      forecastList.forEach(f => {
+        const date = f.dt_txt.split(' ')[0];
+        if (!days[date]) days[date] = [];
+        days[date].push(f);
+      });
+
+      // For each day, compute min/max temp and pick a representative weather description
+      return Object.entries(days).slice(0, 5).map(([date, items]) => {
+        const temps = items.map(i => i.main.temp);
+        const minTemp = Math.min(...temps).toFixed(1);
+        const maxTemp = Math.max(...temps).toFixed(1);
+
+        // Pick the weather at around midday (12:00) if available, else first item
+        const middayForecast = items.find(i => i.dt_txt.includes('12:00:00')) || items[0];
+        const description = middayForecast.weather[0].description;
+        const icon = middayForecast.weather[0].icon;
+
+        return { date, minTemp, maxTemp, description, icon };
+      });
+    }
+
     async function getWeather() {
       const city = document.getElementById("cityInput").value.trim();
       const result = document.getElementById("result");
@@ -83,28 +108,33 @@ app.get('/', (req, res) => {
         }
 
         const current = data.current;
-        const forecast = data.forecast.list.slice(0, 3);
+        const forecast = groupForecastByDay(data.forecast.list);
         const places = data.placesToVisit;
         const bestTime = data.bestTime;
 
         result.innerHTML = \`
-          <div class="weather-card">
-            <div class="mb-4">
-              <div class="city-name">\${current.name}</div>
-              <div><i class="fas fa-thermometer-half text-danger"></i> \${current.main.temp}°C &mdash; \${current.weather[0].description}</div>
+          <div class="weather-card mb-4">
+            <div class="mb-4 text-center">
+              <div class="city-name">\${current.name}, \${current.sys.country}</div>
+              <div><i class="fas fa-thermometer-half text-danger"></i> \${current.main.temp.toFixed(1)}°C &mdash; \${current.weather[0].description}</div>
               <small class="text-muted">Humidity: \${current.main.humidity}% | Wind: \${current.wind.speed} m/s</small>
             </div>
 
-            <div class="section-title"><i class="fas fa-calendar-day"></i> Next 3 Forecasts</div>
-            <ul class="list-group mb-4">
+            <div class="section-title"><i class="fas fa-calendar-day"></i> 5-Day Forecast</div>
+            <div class="d-flex justify-content-between flex-wrap">
               \${forecast.map(f => \`
-                <li class="list-group-item forecast-item d-flex justify-content-between align-items-center">
-                  <span>\${f.dt_txt}</span>
-                  <span><i class="fas fa-temperature-high text-warning"></i> \${f.main.temp}°C - \${f.weather[0].description}</span>
-                </li>
+                <div class="card text-center p-3 m-2" style="min-width: 120px; flex: 1;">
+                  <div><strong>\${f.date}</strong></div>
+                  <img src="https://openweathermap.org/img/wn/\${f.icon}@2x.png" alt="\${f.description}" style="width: 60px; height: 60px;" />
+                  <div>\${f.description}</div>
+                  <div><i class="fas fa-temperature-low text-primary"></i> \${f.minTemp}°C</div>
+                  <div><i class="fas fa-temperature-high text-danger"></i> \${f.maxTemp}°C</div>
+                </div>
               \`).join('')}
-            </ul>
+            </div>
+          </div>
 
+          <div class="weather-card">
             <div class="section-title"><i class="fas fa-map-marker-alt"></i> Top Places to Visit</div>
             <ul class="list-group mb-4">
               \${places.map(p => \`<li class="list-group-item">\${p}</li>\`).join('')}
@@ -181,5 +211,3 @@ app.get('/weather', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
-
-
