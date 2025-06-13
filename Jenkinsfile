@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         NODE_ENV = 'development'
-        DOCKER_IMAGE = 'anishkulkarni04/weather-app'  // Change this to your Docker Hub repo
-        DOCKER_CREDENTIALS = 'docker-hub-credentials'      // The ID you gave in Step 2
+        DOCKER_IMAGE = 'anishkulkarni04/weather-app'
+        DOCKER_CREDENTIALS = 'docker-hub-credentials'
     }
 
     stages {
@@ -17,6 +17,12 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh 'npm install'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'npm test'
             }
         }
 
